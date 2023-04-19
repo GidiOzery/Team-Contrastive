@@ -2,6 +2,8 @@
 
 FROM nvidia/cuda:10.1-devel-ubuntu18.04
 
+#ARG DEBIAN_FRONTEND=noninteractive
+
 ENV PROJECT=permatrack
 ENV PYTORCH_VERSION=1.4
 ENV TORCHVISION_VERSION=0.5.0
@@ -19,12 +21,29 @@ ENV CUDA_VERSION=10.1
 
 # Set default shell to /bin/bash
 SHELL ["/bin/bash", "-cu"]
-
+#RUN apt-key adv --keyserver keyserver.ubuntu.com 871920D1991BC93C
+#RUN apt-get install -y sudo && sudo apt-get install gcc && sudo apt-get install -y software-properties-common
 RUN apt-get update && apt-get install -y apt-utils && apt-get install -y sudo && sudo apt-get install gcc && sudo apt-get install -y software-properties-common && sudo apt-get install -y python3-distutils
+
+ENV TZ=Europe/Amsterdam \
+    DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt-get install tzdata
+
 #RUN wget https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/cuda-${OS}.pin 
 #RUN sudo mv cuda-${OS}.pin /etc/apt/preferences.d/cuda-repository-pin-600
 #RUN sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/3bf863cc.pub
 #RUN sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/ /"
+#RUN ls ./home
+#RUN ls ./tmp
+#RUN ls ./usr
+COPY ./docker/nccl-repo-ubuntu1804-2.4.8-ga-cuda10.1_1-1_amd64.deb /tmp/nccl-repo-ubuntu1804-2.4.8-ga-cuda10.1_1-1_amd64.deb 
+RUN ls /tmp
+#RUN apt-get update --allow-unauthenticated
+#RUN apt-get update --allow-insecure-repositories
+RUN sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F60F4B3D7FA2AF80 
+RUN sudo dpkg -i /tmp/nccl-repo-ubuntu1804-2.4.8-ga-cuda10.1_1-1_amd64.deb
 
 RUN sudo apt-get update && sudo apt-get install -y --allow-downgrades --allow-change-held-packages --no-install-recommends \
     build-essential \
