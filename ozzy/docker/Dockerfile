@@ -2,8 +2,6 @@
 
 FROM nvidia/cuda:10.1-devel-ubuntu18.04
 
-#ARG DEBIAN_FRONTEND=noninteractive
-
 ENV PROJECT=permatrack
 ENV PYTORCH_VERSION=1.4
 ENV TORCHVISION_VERSION=0.5.0
@@ -21,8 +19,7 @@ ENV CUDA_VERSION=10.1
 
 # Set default shell to /bin/bash
 SHELL ["/bin/bash", "-cu"]
-#RUN apt-key adv --keyserver keyserver.ubuntu.com 871920D1991BC93C
-#RUN apt-get install -y sudo && sudo apt-get install gcc && sudo apt-get install -y software-properties-common
+
 RUN apt-get update && apt-get install -y apt-utils && apt-get install -y sudo && sudo apt-get install gcc && sudo apt-get install -y software-properties-common && sudo apt-get install -y python3-distutils
 
 ENV TZ=Europe/Amsterdam \
@@ -31,18 +28,8 @@ ENV TZ=Europe/Amsterdam \
 RUN apt-get update && \
     apt-get install tzdata
 
-#RUN wget https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/cuda-${OS}.pin 
-#RUN sudo mv cuda-${OS}.pin /etc/apt/preferences.d/cuda-repository-pin-600
-#RUN sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/3bf863cc.pub
-#RUN sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/${OS}/x86_64/ /"
-#RUN ls ./home
-#RUN ls ./tmp
-#RUN ls ./usr
-COPY ./docker/nccl-repo-ubuntu1804-2.4.8-ga-cuda10.1_1-1_amd64.deb /tmp/nccl-repo-ubuntu1804-2.4.8-ga-cuda10.1_1-1_amd64.deb 
-RUN ls /tmp
-#RUN apt-get update --allow-unauthenticated
-#RUN apt-get update --allow-insecure-repositories
-RUN sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F60F4B3D7FA2AF80 
+COPY ./docker/nccl-repo-ubuntu1804-2.4.8-ga-cuda10.1_1-1_amd64.deb /tmp/nccl-repo-ubuntu1804-2.4.8-ga-cuda10.1_1-1_amd64.deb
+RUN sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys F60F4B3D7FA2AF80
 RUN sudo dpkg -i /tmp/nccl-repo-ubuntu1804-2.4.8-ga-cuda10.1_1-1_amd64.deb
 
 RUN sudo apt-get update && sudo apt-get install -y --allow-downgrades --allow-change-held-packages --no-install-recommends \
@@ -55,8 +42,6 @@ RUN sudo apt-get update && sudo apt-get install -y --allow-downgrades --allow-ch
     vim \
     wget \
     ca-certificates \
-#    libcudnn7=${CUDNN_VERSION} \
-#    libcudnn7-dev=${CUDNN_VERSION} \
     libnccl2=${NCCL_VERSION} \
     libnccl-dev=${NCCL_VERSION} \
     libjpeg-dev \
@@ -73,28 +58,9 @@ RUN sudo apt-get update && sudo apt-get install -y --allow-downgrades --allow-ch
     gnuplot \
     ffmpeg
 
-#RUN wget https://developer.nvidia.com/compute/machine-learning/cudnn/secure/7.6.5.32/Production/10.1_20191031/cudnn-10.1-linux-x64-v7.6.5.32.tgz
-#RUN file cudnn-10.1-linux-x64-v7.6.5.32.tgz
-#RUN tar -xvf ~/home2/permatrack/docker/cudnn-10.1-linux-x64-v7.6.5.32.tgz
-#RUN ls
-#RUN ls/usr
-#RUN ls/home
-#RUN ls/root
-#RUN ls ~/home2/permatrack/docker/
-#RUN sudo cp ~/home2/permatrack/docker/cuda/include/cudnn.h /usr/local/cuda/include
-#RUN sudo cp cuda/lib64/libcudnn* /usr/local/cuda/lib64
-#RUN sudo chmod a+r /usr/local/cuda/include/cudnn.h /usr/local/cuda/lib64/libcudnn*
 COPY ./docker/cuda/include/cudnn.h /usr/local/cuda/include
 COPY ./docker/cuda/lib64/libcudnn* /usr/local/cuda/lib64/
 RUN sudo chmod a+r /usr/local/cuda/include/cudnn.h /usr/local/cuda/lib64/libcudnn*
-
-#RUN wget https://developer.nvidia.com/compute/machine-learning/cudnn/secure/7.6.5.32/Production/10.1_20191031/Ubuntu18_04-x64/libcudnn7_7.6.5.32-1+cuda10.1_amd64.deb
-#RUN sudo dpkg -i libcudnn7_7.6.5.32-1+cuda10.1_amd64.deb
-#RUN wget https://developer.nvidia.com/compute/machine-learning/cudnn/secure/7.6.5.32/Production/10.1_20191031/Ubuntu18_04-x64/libcudnn7-dev_7.6.5.32-1+cuda10.1_amd64.deb
-#RUN sudo dpkg -i libcudnn7-dev_7.6.5.32-1+cuda10.1_amd64.deb
-#RUN wget https://developer.download.nvidia.com/compute/redist/nccl/v2.4/nccl_2.4.8-1+cuda10.1_x86_64.txz
-
-
 
 # Install OpenSSH for MPI to communicate between containers
 RUN apt-get install -y --no-install-recommends openssh-client openssh-server && \
