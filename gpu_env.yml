@@ -1,0 +1,46 @@
+name: contrastive
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip=22.2.2
+  - pytorch-cuda=11.7
+  - pytorch=1.*
+  - torchvision
+  - torchaudio
+  - pip:
+    - pytorch-lightning==1.7.7
+    - tensorboard
+    - tabulate>=0.8.9
+    - pillow>=8.0.1
+    - notebook>=6.4.5
+    - jupyterlab>=3.2.1
+    - matplotlib>=3.4.3
+    - seaborn>=0.11.2
+    - ipywidgets>=7.6.5
+    - easydict
+    - scipy
+    - numpy
+    - pyquaternion
+    - matplotlib
+    - jupyter
+    - h5py
+    - awscli
+    - nuscenes-devkit
+    - tqdm
+    - progress
+    - path.py
+    - pyyaml
+    - opencv-python
+    - numba
+    - cython
+    - motmetrics
+    - scikit-learn
+    - moviepy
+    - imageio
+    - yacs
+    - git+https://github.com/cocodataset/cocoapi.git#subdirectory=PythonAPI
+    - git+https://github.com/achalddave/python-script-utils.git@v0.0.2#egg=script_utils
