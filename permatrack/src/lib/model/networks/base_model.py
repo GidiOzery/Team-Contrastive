@@ -2,6 +2,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import io
+import json
+import pickle
+
 import numpy as np
 import copy
 import math
@@ -142,11 +146,21 @@ class BaseModel(nn.Module):
       return z
 
     def forward(self, x, pre_img=None, pre_hm=None, batch_size=1):
+      buffer = io.BytesIO()
+      torch.save(x, buffer)
+      buffer.seek(0)
+      obj_cpu = torch.load(buffer, map_location='cpu')
+
+      with open('saved_dictionary.pkl', 'wb') as f:
+        pickle.dump(obj_cpu, f)
+
+      # np.save('input.npy', np.concatenate([x_sub['image'][:1].detach().cpu() for x_sub in x]))
+      # np.save('bboxes.npy', x['gt_det']['bboxes'].detach().cpu())
+
       if (pre_hm is not None) or (pre_img is not None):
         feats = self.imgpre2feats(x, pre_img, pre_hm)
       else:
         feats = self.img2feats(x)
-      
       out = []
       if self.opt.model_output_list:
         for s in range(self.num_stacks):
@@ -166,10 +180,13 @@ class BaseModel(nn.Module):
             # process a batch of frames one by one
             for i in range(inp.size(1)):
               curr_step = inp[:, i, :, :, :]
+              np.save(f'F_t_{i}.npy', curr_step.detach().cpu())
+
               if self.opt.pre_hm:
                 curr_step = torch.cat((curr_step, hm), 1)
               intermediate_outputs, layer_reset_list, layer_update_list, last_output = self.conv_gru(curr_step.unsqueeze(1), h)
               h = last_output
+              print("H", last_output[-1:][0].shape)
               feats[s] = last_output[-1:][0]
 
               z = {}
@@ -187,5 +204,5 @@ class BaseModel(nn.Module):
           
             out.append(z)
             pre_hms = [pre_hm]
-
+      exit(1)
       return out, pre_hms, x
