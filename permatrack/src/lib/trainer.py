@@ -3,7 +3,10 @@ from __future__ import division
 from __future__ import print_function
 
 import copy
+import random
 import time
+from collections import defaultdict
+
 import torch
 import numpy as np
 from progress.bar import Bar
@@ -21,6 +24,8 @@ from model.utils import _sigmoid, flip_tensor, flip_lr_off, flip_lr
 from utils.debugger import Debugger
 from utils.post_process import generic_post_process
 from model.utils import _tranpose_and_gather_feat
+from pytorch_metric_learning import losses
+
 
 class GenericLoss(torch.nn.Module):
     def __init__(self, opt):
@@ -99,11 +104,24 @@ class GenericLoss(torch.nn.Module):
 
         return losses['tot'], losses
 
+
+def convert_dict(data):
+    new_dict = defaultdict(lambda: [])
+
+    for frame, values in data.items():
+        for obj_id, obj_repr in values.items():
+            new_dict[obj_id].append(obj_repr)
+
+    return dict(new_dict)
+
+
 class ModleWithLoss(torch.nn.Module):
-    def __init__(self, model, loss):
+    def __init__(self, model, loss, contrastive_loss=None):
         super(ModleWithLoss, self).__init__()
         self.model = model
         self.loss = loss
+        if contrastive_loss:
+            self.contrastive_loss = losses.ContrastiveLoss()
 
     def forward(self, batch, batch_size=1, stream=False, pre_gru_state=None, eval_mode=False):
         """ Forward function
@@ -146,12 +164,56 @@ class ModleWithLoss(torch.nn.Module):
                 outputs, output_gru_state = self.model.step(batch, pre_gru_state)
             else:
                 outputs, pre_hm, batch = self.model(batch, pre_img, pre_hm, batch_size)
+
+            feature_repr = convert_dict(feature_repr)
             loss = None
             stats = []
 
+            contr_loss = 0
             if not eval_mode:
+                # Select right batch TODO: does it matter where we select the negative pairs from?
+                # contrastive_objects = pairs[i]
+
+                # Calculate contrastive loss per object
+                for obj, obj_values in feature_repr.items():
+                    # Select positive pairs
+                    positive_pairs = obj_values  # All object's feature representations are positive
+
+                    # Select negative pairs
+                    N = len(positive_pairs)
+
+                    # Only contrastive loss if there is at least 1 pair (so, more than 1 feature representation)
+                    if N <= 1:
+                        continue
+
+                    # Get all possible negative pairs (so not use current object representations)
+                    possible_negative = []
+                    for k, v in feature_repr.items():
+                        if k == obj:
+                            continue
+                        possible_negative.extend(v)
+
+                    # Select same number of negative pairs
+                    negative_pairs = random.sample(possible_negative, N)
+
+                    # Create labels
+                    labels = [1] * len(positive_pairs)
+                    labels.extend([0] * len(negative_pairs))
+
+                    labels = torch.tensor(labels)
+
+                    positive_pairs = torch.stack(positive_pairs)
+                    negative_pairs = torch.stack(negative_pairs)
+                    pairs = torch.cat((positive_pairs, negative_pairs))
+
+                    obj_contr_loss = self.contrastive_loss(pairs, labels)
+                    print(f"Object {obj} contrastive loss: {obj_contr_loss}")
+                    contr_loss += obj_contr_loss
+
+                # Normal loss
                 for i in range(len(batch)):
                     loss_step, loss_stats = self.loss([outputs[i]], batch[i], len(batch), i)
+                    print("CURRENT LOSS STEP", loss_step)
                     stats.append(loss_stats)
                     if loss is None:
                         loss = loss_step
@@ -165,6 +227,10 @@ class ModleWithLoss(torch.nn.Module):
 
         if stream:
             return outputs, loss, loss_stats, batch, output_gru_state
+
+        print("OUTPUT LOSS", loss)
+        print("Contrastive loss", contr_loss)
+        exit(1)
         return outputs, loss, loss_stats, pre_hm, batch
 
 def get_losses(opt):
@@ -181,7 +247,7 @@ class Trainer(object):
         self.opt = opt
         self.optimizer = optimizer
         self.loss_stats, self.loss = get_losses(opt)
-        self.model_with_loss = ModleWithLoss(model, self.loss)
+        self.model_with_loss = ModleWithLoss(model, self.loss, opt.contrastive_loss)
 
     def set_device(self, gpus, chunk_sizes, device):
         self.rank = device
