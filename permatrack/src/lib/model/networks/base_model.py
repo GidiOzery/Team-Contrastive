@@ -13,6 +13,7 @@ import math
 import torch
 from torch import nn
 import torch.nn.functional as F
+from torchvision.ops import roi_align
 from torch.autograd import Function
 from model.decode import generic_decode
 
@@ -146,13 +147,13 @@ class BaseModel(nn.Module):
       return z
 
     def forward(self, x, pre_img=None, pre_hm=None, batch_size=1):
-      buffer = io.BytesIO()
-      torch.save(x, buffer)
-      buffer.seek(0)
-      obj_cpu = torch.load(buffer, map_location='cpu')
-
-      with open('saved_dictionary.pkl', 'wb') as f:
-        pickle.dump(obj_cpu, f)
+      # buffer = io.BytesIO()
+      # torch.save(x, buffer)
+      # buffer.seek(0)
+      # obj_cpu = torch.load(buffer, map_location='cpu')
+      #
+      # with open('saved_dictionary.pkl', 'wb') as f:
+      #   pickle.dump(obj_cpu, f)
 
       # np.save('input.npy', np.concatenate([x_sub['image'][:1].detach().cpu() for x_sub in x]))
       # np.save('bboxes.npy', x['gt_det']['bboxes'].detach().cpu())
@@ -178,9 +179,45 @@ class BaseModel(nn.Module):
             h = None
             pre_hms = []
             # process a batch of frames one by one
+            feature_dict = dict()
+
             for i in range(inp.size(1)):
+              feature_dict[i] = dict()
+              roi_coords, feature_rois, track_id_list = list(), list(), list()
+              frame_dict = x[i]
+
+              # B, T, W, H
+              # F matrix
               curr_step = inp[:, i, :, :, :]
-              np.save(f'F_t_{i}.npy', curr_step.detach().cpu())
+              #np.save(f'F_t_{i}.npy', curr_step.detach().cpu())
+
+              F_t = torch.permute(curr_step, (0, 3, 1, 2))
+
+              for batch_dim in range(frame_dict["image"].shape[0]):
+                  # Track id's per batch dimension
+                  track_id_mask = frame_dict["track_ids"][batch_dim, :] != -1
+                  track_id_list += list(t["track_ids"][batch_dim, :][track_id_mask].cpu().numpy())
+
+                  # Bounding boxes per batch dimension
+                  bbox_mask = frame_dict["gt_det"]["bboxes"][batch_dim, :].sum(dim=1) != 2
+                  bboxes = frame_dict["gt_det"]["bboxes"][batch_dim, :][bbox_mask]
+
+                  # Add batch index to coords
+                  idx = bboxes.new_ones(bboxes.shape[0], 1) * batch_dim
+
+                  rois = torch.cat((bboxes.new_ones(bboxes.shape[0], 1) * batch_dim, bboxes), dim=1)
+                  roi_coords.append(rois)
+
+              roi_coords = torch.cat(roi_coords, dim=0)
+
+              roi_coords[:, 2] = roi_coords[:, 2] / 2
+              roi_coords[:, 4] = roi_coords[:, 4] / 2
+
+              F_t_roi = roi_align(F_t, roi_coords, (15, 15))
+
+              roi_vectors = list(F_t_roi.flatten(start_dim=1))
+
+              feature_dict[i] = dict(zip(track_id_list, roi_vectors))
 
               if self.opt.pre_hm:
                 curr_step = torch.cat((curr_step, hm), 1)
@@ -205,4 +242,4 @@ class BaseModel(nn.Module):
             out.append(z)
             pre_hms = [pre_hm]
       exit(1)
-      return out, pre_hms, x
+      return out, pre_hms, x, feature_dict
