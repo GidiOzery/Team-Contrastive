@@ -44,7 +44,7 @@ string.""", formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--loglevel', type=str, help='Log level', default='info')
     parser.add_argument('--fmt', type=str, help='Data format', default='mot15-2D')
     parser.add_argument('--solver', type=str, help='LAP solver to use')
-    parser.add_argument('--save_path', type=str)
+    parser.add_argument('--save_path', type=str, default='~/')
 
     return parser.parse_args()
 
