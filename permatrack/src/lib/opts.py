@@ -107,6 +107,7 @@ class opts(object):
     self.parser.add_argument('--freeze_gru', action='store_true')
     self.parser.add_argument('--gru_filter_size', type=int, default=3)
     self.parser.add_argument('--num_gru_layers', type=int, default=1)
+    self.parser.add_argument('--contrastive_loss', action='store_true')
 
     # input
     self.parser.add_argument('--input_res', type=int, default=-1, 

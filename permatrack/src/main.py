@@ -2,6 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import pandas as pd
+
 import _init_paths
 import os
 import glob
@@ -21,6 +23,7 @@ from tqdm import tqdm
 
 import torch.multiprocessing as mp
 import torch.distributed as dist
+import wandb
 
 
 def setup(rank, world_size):
@@ -57,7 +60,7 @@ def launch_test(opt, epoch):
   if dataset == 'mot':
     dataset_version = '17halfval'
   command = "python test.py tracking --exp_id %s --dataset %s --dataset_version %s --track_thresh 0.4 --resume --is_recurrent --debug 4 --gru_filter_size %d --input_len %d --write_to_file --num_gru_layers %d --test_with_loss --flip 0 --visibility_thresh_eval %f --load_model %s" % \
-  (opt.exp_id, dataset, dataset_version, opt.gru_filter_size, opt.input_len, opt.num_gru_layers, opt.visibility_thresh_eval, f"model_{epoch}.pth")
+  (opt.exp_id, dataset, dataset_version, opt.gru_filter_size, opt.input_len, opt.num_gru_layers, opt.visibility_thresh_eval, f"../exp/tracking/{opt.exp_id}/model_{epoch}.pth")
   if opt.input_len > 3:
     command += ' --stream_test'
   if opt.pre_hm:
@@ -77,9 +80,13 @@ def launch_test(opt, epoch):
   # load evaluation loss
   loss_ret = json.load(open("../exp/tracking/{}/eval_loss_out.json".format(opt.exp_id), "r"))
 
+  # print(pd.read_csv(opt.save_dir + '/official_results.csv'))
+  # exit(1)
+
   return loss_ret
 
 def train(rank, opt, Dataset):
+  wandb.init(project="CV2_contrastive_permatrack", config=opt)
   setup(rank, len(opt.gpus))
 
   logger = Logger(opt)
@@ -95,6 +102,8 @@ def train(rank, opt, Dataset):
 
   print('Creating model...')
   model = create_model(opt.arch, opt.heads, opt.head_conv, opt=opt)
+  wandb.watch(model, log_freq=10)
+
   if opt.freeze_backbone:
     model.freeze_backbone()
   if opt.freeze_gru:
@@ -188,14 +197,13 @@ def train(rank, opt, Dataset):
           continue
         logger.scalar_summary('train_{}'.format(k), v, epoch)
         logger.write('{} {:8f} | '.format(k, v))
+
       if opt.val_intervals > 0 and epoch % opt.val_intervals == 0:
         log_outputs = {}
-        save_model(os.path.join(opt.save_dir, 'model_{}.pth'.format(mark)),
-                    epoch, model, optimizer)
+        save_model(os.path.join(opt.save_dir, 'model_{}.pth'.format(mark)), epoch, model, optimizer)
 
         torch.cuda.empty_cache()
         log_dict_val = launch_test(opt, epoch)
-
         for k, v in log_dict_val.items():
           if k == "vids":
             continue
@@ -203,12 +211,10 @@ def train(rank, opt, Dataset):
           logger.write('{} {:8f} | '.format(k, v))
           stats['val_{}'.format(k)] = v
       else:
-        save_model(os.path.join(opt.save_dir, 'model_last.pth'), 
-                  epoch, model, optimizer)
+        save_model(os.path.join(opt.save_dir, 'model_last.pth'),  epoch, model, optimizer)
       logger.write('\n')
       if epoch in opt.save_point:
-        save_model(os.path.join(opt.save_dir, 'model_{}.pth'.format(epoch)), 
-                  epoch, model, optimizer)
+        save_model(os.path.join(opt.save_dir, 'model_{}.pth'.format(epoch)), epoch, model, optimizer)
 
     if opt.dataset == 'pd_tracking' or opt.dataset == 'crowdhuman':
       if ((epoch + 1) % opt.lr_step[0]) == 0:
@@ -249,6 +255,7 @@ def main(opt):
   opt.device = torch.device('cuda' if opt.gpus[0] >= 0 else 'cpu')
   
   mp.spawn(train, nprocs=len(opt.gpus), args=(opt, Dataset,))   
+
 
 if __name__ == '__main__':
   opt = opts().parse()

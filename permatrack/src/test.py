@@ -58,7 +58,6 @@ def prefetch_test(opt):
     os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpus_str
   Dataset = dataset_factory[opt.test_dataset]
   opt = opts().update_dataset_info_and_set_heads(opt, Dataset)
-  print(opt)
   Logger(opt)
   
   split = 'val' if not opt.trainval else 'test'
@@ -110,8 +109,20 @@ def prefetch_test(opt):
         pre_processed_images['meta']['cur_dets'] = []
 
     ret = detector.run(pre_processed_images)
-    results[int(img_id.numpy().astype(np.int32)[0])] = ret['results']
-    
+
+    # Make sure no np.float32 for json dump
+    out = []
+    for elem in ret['results']:
+      new_elem = {}
+      for k, v in elem.items():
+        if isinstance(v, np.ndarray):
+          new_elem[k] = v.astype(float)
+        else:
+          new_elem[k] = v
+      out.append(new_elem)
+
+    results[int(img_id.numpy().astype(np.int32)[0])] = out
+
     Bar.suffix = '[{0}/{1}]|Tot: {total:} |ETA: {eta:} '.format(
                    ind, num_iters, total=bar.elapsed_td, eta=bar.eta_td)
     for t in avg_time_stats:
@@ -127,9 +138,7 @@ def prefetch_test(opt):
   if opt.save_results:
     print('saving results to', opt.save_dir + '/save_results_{}{}.json'.format(
       opt.test_dataset, opt.dataset_version))
-    json.dump(_to_list(copy.deepcopy(results)), 
-              open(opt.save_dir + '/save_results_{}{}.json'.format(
-                opt.test_dataset, opt.dataset_version), 'w'))
+    json.dump(str(_to_list(copy.deepcopy(results))), open(opt.save_dir + '/save_results_{}{}.json'.format(opt.test_dataset, opt.dataset_version), 'w'))
   dataset.run_eval(results, opt.save_dir, opt.write_to_file, opt.dataset_version)
 
 def test_with_loss(opt):
@@ -137,7 +146,6 @@ def test_with_loss(opt):
     os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpus_str
   Dataset = dataset_factory[opt.test_dataset]
   opt = opts().update_dataset_info_and_set_heads(opt, Dataset)
-  print(opt)
   Logger(opt)
 
   split = 'val' if not opt.trainval else 'test'
@@ -233,7 +241,6 @@ def test(opt):
 
   Dataset = dataset_factory[opt.test_dataset]
   opt = opts().update_dataset_info_and_set_heads(opt, Dataset)
-  print(opt)
   Logger(opt)
   
   split = 'val' if not opt.trainval else 'test'
@@ -286,6 +293,7 @@ def _to_list(results):
         if isinstance(results[img_id][t][k], (np.ndarray, np.float32)):
           results[img_id][t][k] = results[img_id][t][k].tolist()
   return results
+
 
 if __name__ == '__main__':
   opt = opts().parse()

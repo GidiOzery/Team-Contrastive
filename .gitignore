@@ -1,1 +1,4 @@
 __pycache__/
+permatrack/src/lib/model/networks/DCNv2/
+permatrack/exp/
+.idea/

@@ -189,14 +189,14 @@ class BaseModel(nn.Module):
               # B, T, W, H
               # F matrix
               curr_step = inp[:, i, :, :, :]
-              #np.save(f'F_t_{i}.npy', curr_step.detach().cpu())
+              #np.save(f'F_t_{i}.npy'aa, curr_step.detach().cpu())
 
-              F_t = torch.permute(curr_step, (0, 3, 1, 2))
+              F_t = curr_step.permute(0, 3, 1, 2)
 
               for batch_dim in range(frame_dict["image"].shape[0]):
                   # Track id's per batch dimension
                   track_id_mask = frame_dict["track_ids"][batch_dim, :] != -1
-                  track_id_list += list(t["track_ids"][batch_dim, :][track_id_mask].cpu().numpy())
+                  track_id_list += list(frame_dict["track_ids"][batch_dim, :][track_id_mask].cpu().numpy())
 
                   # Bounding boxes per batch dimension
                   bbox_mask = frame_dict["gt_det"]["bboxes"][batch_dim, :].sum(dim=1) != 2
@@ -223,8 +223,7 @@ class BaseModel(nn.Module):
                 curr_step = torch.cat((curr_step, hm), 1)
               intermediate_outputs, layer_reset_list, layer_update_list, last_output = self.conv_gru(curr_step.unsqueeze(1), h)
               h = last_output
-              print("H", last_output[-1:][0].shape)
-              feats[s] = last_output[-1:][0]
+              feats[s] = last_output[-1:][0]  # TODO: this is probably M_t?
 
               z = {}
               z = self.apply_heads(feats[s], z)
@@ -241,5 +240,5 @@ class BaseModel(nn.Module):
           
             out.append(z)
             pre_hms = [pre_hm]
-      exit(1)
+
       return out, pre_hms, x, feature_dict

@@ -99,11 +99,10 @@ class MOT(VideoDataset):
                 else '_val_half' if '17halfval' in self.opt.dataset_version \
                 else '')
     gt_type_str = '--gt_type {}'.format(gt_type_str) if gt_type_str != '' else ''
-    print('python tools/eval_motchallenge.py ' + \
-              '../data/mot{}/{}/ '.format(self.year, 'train') + \
-              '{}/results_mot{}/ '.format(save_dir, self.dataset_version) + \
-              gt_type_str + ' --eval_official')
+    print('python tools/eval_motchallenge.py ' + '../data/mot{}/{}/ '.format(self.year, 'train') + '{}/results_mot{}/ '.format(save_dir, self.dataset_version) + gt_type_str + ' --eval_official')
     os.system('python tools/eval_motchallenge.py ' + \
               '../data/mot{}/{}/ '.format(self.year, 'train') + \
               '{}/results_mot{}/ '.format(save_dir, self.dataset_version) + \
-              gt_type_str + ' --eval_official')
+              gt_type_str + ' --eval_official' + \
+              '--save_path {}'.format(save_dir)
+              )
