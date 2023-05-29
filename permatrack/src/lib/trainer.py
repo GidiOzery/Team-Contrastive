@@ -116,11 +116,12 @@ def convert_dict(data):
 
 
 class ModleWithLoss(torch.nn.Module):
-    def __init__(self, model, loss, contrastive_loss=None):
+    def __init__(self, model, loss, contrastive_loss=None, lambda_contrastive=1):
         super(ModleWithLoss, self).__init__()
         self.model = model
         self.loss = loss
         self.contrastive_loss = losses.ContrastiveLoss() if contrastive_loss else None
+        self.lambda_contrastive = lambda_contrastive
 
     def forward(self, batch, batch_size=1, stream=False, pre_gru_state=None, eval_mode=False):
         """ Forward function
@@ -226,7 +227,7 @@ class ModleWithLoss(torch.nn.Module):
 
         if contr_loss:
             contrastive_loss = torch.mean(torch.cat(contr_loss))
-            loss += contrastive_loss
+            loss += self.lambda_contrastive * contrastive_loss
             loss_stats['contrastive'] = contrastive_loss
 
         if stream:
@@ -248,7 +249,7 @@ class Trainer(object):
         self.opt = opt
         self.optimizer = optimizer
         self.loss_stats, self.loss = get_losses(opt)
-        self.model_with_loss = ModleWithLoss(model, self.loss, opt.contrastive_loss)
+        self.model_with_loss = ModleWithLoss(model, self.loss, opt.contrastive_loss, opt.contrastive_weight)
 
     def set_device(self, gpus, chunk_sizes, device):
         self.rank = device

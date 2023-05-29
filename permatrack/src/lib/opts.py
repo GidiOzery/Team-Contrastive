@@ -293,6 +293,8 @@ class opts(object):
                              help='loss weight for 3d bounding box size.')
     self.parser.add_argument('--rot_weight', type=float, default=1,
                              help='loss weight for orientation.')
+    self.parser.add_argument('--contrastive_weight', type=float, default=1,
+                             help="loss weight for contrastive loss")
     self.parser.add_argument('--nuscenes_att', action='store_true')
     self.parser.add_argument('--nuscenes_att_weight', type=float, default=1)
     self.parser.add_argument('--velocity', action='store_true')
