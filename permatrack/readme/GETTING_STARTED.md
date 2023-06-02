@@ -70,6 +70,8 @@ CUDA_VISIBLE_DEVICES=1 python test.py tracking,ddd --exp_id nuscenes_tracking  -
 The expected AMOTA is `10.9`.
 
 ## Training
+**NOTE**: to use our contrastive loss implementation, add the `--contrastive_loss` flag to `main.py`. The model will now be trained with additional supervision using contrastive loss.
+
 We have packed all the training scripts in the [experiments](../experiments) folder.
 Each model is trained on 8 Tesla V100 GPUs with 32GB of memory.
 If the training is terminated before finishing, you can use the same command with `--resume` to resume training. It will found the latest model with the same `exp_id`.
